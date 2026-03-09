@@ -2,7 +2,14 @@ using Leopotam.Ecs;
 
 using UnityEngine;
 
+using XCharts.Runtime;
+
 public class Simulation : MonoBehaviour {
+    [SerializeField]
+    LineChart energyChart;
+    [SerializeField]
+    GameObject pointPrefab, springPrefab;
+
     EcsWorld world;
     EcsSystems systems;
 
@@ -12,7 +19,7 @@ public class Simulation : MonoBehaviour {
         systems?.Init();
     }
 
-    void Update() {
+    void FixedUpdate() {
         systems?.Run();
     }
 
@@ -21,8 +28,8 @@ public class Simulation : MonoBehaviour {
         systems = new(world);
 
         systems
-            .Add(new ExplicitEulerIntegratorSystem(() => Time.deltaTime))
-            .Add(new DrawSystem());
+            .Add(new ImplicitEulerIntegratorSystem(() => Time.fixedDeltaTime))
+            .Add(new EnergyBeholderSystem(energyChart));
 
         Create(
             world,
@@ -68,6 +75,12 @@ public class Simulation : MonoBehaviour {
 
             ref var matPoint = ref pointEntity.Get<MaterialPoint>();
             matPoint.m = mass;
+
+            Instantiate(pointPrefab)
+                .GetComponent<PointVisualiser>()
+                .SetEntity(pointEntity)
+                .SetColor(new Color(0, 1, 0, 1))
+                .AddTrack(Color.white);
         }
 
         var spring1ConnectionEntity = world.NewEntity();
@@ -95,6 +108,10 @@ public class Simulation : MonoBehaviour {
             spring.relaxedLength = spring1Param.relaxedLength;
             spring.joint1 = spring1ConnectionEntity;
             spring.joint2 = pointEntity;
+
+            Instantiate(springPrefab)
+                .GetComponent<SpringVisualiser>()
+                .SetEntity(spring1Entity);
         }
 
         var spring2Entity = world.NewEntity();
@@ -104,6 +121,10 @@ public class Simulation : MonoBehaviour {
             spring.relaxedLength = spring2Param.relaxedLength;
             spring.joint1 = spring2ConnectionEntity;
             spring.joint2 = pointEntity;
+
+            Instantiate(springPrefab)
+                .GetComponent<SpringVisualiser>()
+                .SetEntity(spring2Entity);
         }
     }
 
