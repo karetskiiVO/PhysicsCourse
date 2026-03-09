@@ -195,7 +195,7 @@ public class ImplicitEulerIntegratorSystem : BaseIntegratorSystem {
 }
 
 public class TheoreticalSolverIntegratorSystem : BaseIntegratorSystem {
-    new EcsFilter<TheoreticalPoint, Position> points = null;
+    new EcsFilter<TheoreticalPoint, Position, MaterialPoint> points = null;
     float time = 0;
 
     public TheoreticalSolverIntegratorSystem(Func<float> DeltaTime) : base(DeltaTime) { }
@@ -206,8 +206,9 @@ public class TheoreticalSolverIntegratorSystem : BaseIntegratorSystem {
         foreach (var pointIndex in points) {
             ref var point = ref points.Get1(pointIndex);
             ref var position = ref points.Get2(pointIndex);
+            ref var materialPoint = ref points.Get3(pointIndex);
 
-            position.r = point.position(time);
+            (position.r, materialPoint.v) = point.solution(time);
         }
     }
 }
