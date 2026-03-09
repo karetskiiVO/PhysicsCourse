@@ -13,18 +13,26 @@ class SimulationCreatorTask1 : MonoBehaviour {
     [SerializeField]
     GameObject pointPrefab, springPrefab;
 
+    float ParseOrDefault(string raw, float defau) {
+        if (!float.TryParse(raw, out float res)) {
+            res = defau;
+        }
+
+        return res;
+    }
+
     public void StartSimulation() {
         var spring1Param = new SpringParams() {
-            length = float.Parse(l1.text),
-            relaxedLength = float.Parse(l1Rel.text),
-            k = float.Parse(k1.text),
+            length = ParseOrDefault(l1.text, 2),
+            relaxedLength = ParseOrDefault(l1Rel.text, 1),
+            k = ParseOrDefault(k1.text, 1),
         };
         var spring2Param = new SpringParams() {
-            length = float.Parse(l2.text),
-            relaxedLength = float.Parse(l2Rel.text),
-            k = float.Parse(k2.text),
+            length = ParseOrDefault(l2.text, 2),
+            relaxedLength = ParseOrDefault(l2Rel.text, 1),
+            k = ParseOrDefault(k2.text, 1),
         };
-        var m = float.Parse(mass.text);
+        var m = ParseOrDefault(mass.text, 1);
 
         Simulation.Create = (world, systems) => Create(world, systems, spring1Param, spring2Param, m, 120, solutionType.value);
 
