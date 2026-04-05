@@ -2,10 +2,12 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 class ReturnToMainMenu : MonoBehaviour {
-    public void ToMenu() {
-        var currentName = SceneManager.GetActiveScene().name;
+    [SerializeField]
+    string menuSceneName;
 
-        SceneManager.LoadScene("Menu");
-        SceneManager.UnloadScene(currentName);
+    public void ToMenu() {
+
+        SceneManager.LoadScene(menuSceneName);
+        SceneManager.UnloadScene(SceneManager.GetActiveScene().name);
     }
 }

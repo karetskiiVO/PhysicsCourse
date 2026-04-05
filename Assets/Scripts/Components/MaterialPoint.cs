@@ -1,7 +1,6 @@
 using UnityEngine;
 
-public struct MaterialPoint
-{
+public struct MaterialPoint {
     public Vector2 v;
     public float m;
 
