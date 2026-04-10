@@ -16,19 +16,19 @@ namespace Task1 {
             this.DeltaTime = DeltaTime;
         }
 
-        static protected Vector2 SpringForce(ref Spring spring) {
+        static protected Vector3 SpringForce(ref Spring spring) {
             var pos1 = spring.joint1.Get<Position>().r;
             var pos2 = spring.joint2.Get<Position>().r;
             var delta = pos2 - pos1;
             float distance = delta.magnitude;
 
-            if (distance < Mathf.Epsilon) return Vector2.zero;
+            if (distance < Mathf.Epsilon) return Vector3.zero;
 
             float stretch = distance - spring.relaxedLength;
             return -spring.k * stretch * (delta / distance);
         }
 
-        static protected void ApplyForce(EcsEntity entity, Vector2 force) {
+        static protected void ApplyForce(EcsEntity entity, Vector3 force) {
             if (!entity.Has<MaterialPoint>()) return;
 
             ref var materialPoint = ref entity.Get<MaterialPoint>();
@@ -133,10 +133,10 @@ namespace Task1 {
             DropAccelerations();
 
             var pointEntities = new List<EcsEntity>();
-            var oldPositions = new List<Vector2>();
-            var oldVelocities = new List<Vector2>();
-            var predictedPositions = new List<Vector2>();
-            var predictedVelocities = new List<Vector2>();
+            var oldPositions = new List<Vector3>();
+            var oldVelocities = new List<Vector3>();
+            var predictedPositions = new List<Vector3>();
+            var predictedVelocities = new List<Vector3>();
 
             foreach (var pointIndex in points) {
                 var entity = points.GetEntity(pointIndex);

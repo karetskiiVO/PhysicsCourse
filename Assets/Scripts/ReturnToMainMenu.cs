@@ -6,8 +6,9 @@ class ReturnToMainMenu : MonoBehaviour {
     string menuSceneName;
 
     public void ToMenu() {
+        var currSceneName = SceneManager.GetActiveScene().name;
 
         SceneManager.LoadScene(menuSceneName);
-        SceneManager.UnloadScene(SceneManager.GetActiveScene().name);
+        SceneManager.UnloadScene(currSceneName);
     }
 }
