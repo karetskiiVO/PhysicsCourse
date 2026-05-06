@@ -34,6 +34,11 @@ namespace Task2 {
         public float rigidBallRadius = 0.45f;
         public float rigidBallCompliance = 1e-10f;
 
+        public float grabRayLength = 100f;
+        public float grabSelectionRadius = 0.35f;
+        public float holdMinDistance = 0.75f;
+        public float holdMaxDistance = 8f;
+
         class Particle {
             public Vector3 position;
             public Vector3 predicted;
@@ -113,15 +118,20 @@ namespace Task2 {
         HashSet<ulong> neighborPairs = new();
         List<GameObject> spawned = new();
 
+        [SerializeField]
         Camera cam;
+        [SerializeField]
+        Transform grabRayTransform;
         GameObject floorVisual;
+
+        Material particleRuntimeMaterial;
+        Material floorRuntimeMaterial;
 
         int cubeStart;
         int cubeCount;
 
         int grabbed = -1;
-        float grabDepth;
-        Vector3 grabOffset;
+        float holdDistance = 2f;
 
         DemoScene currentScene;
 
@@ -130,8 +140,55 @@ namespace Task2 {
                 ApplyLoadedSettings(settings);
             }
 
-            cam = Camera.main;
+            if (cam == null)
+                cam = Camera.main;
+
+            if (grabRayTransform == null && cam != null)
+                grabRayTransform = cam.transform;
+
+            EnsureRuntimeMaterials();
             BuildScene(startScene);
+        }
+
+        void EnsureRuntimeMaterials() {
+            if (particleRuntimeMaterial == null)
+                particleRuntimeMaterial = CreateCompatibleMaterial("PD_ParticleMat");
+
+            if (floorRuntimeMaterial == null)
+                floorRuntimeMaterial = CreateCompatibleMaterial("PD_FloorMat");
+        }
+
+        Material CreateCompatibleMaterial(string materialName) {
+            var hasRenderPipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
+
+            string[] candidates = hasRenderPipeline
+                ? new[] {
+                    "Universal Render Pipeline/Lit",
+                    "Universal Render Pipeline/Simple Lit",
+                    "HDRP/Lit",
+                    "Sprites/Default",
+                    "Unlit/Color",
+                    "Standard",
+                    "Legacy Shaders/Diffuse"
+                }
+                : new[] {
+                    "Standard",
+                    "Legacy Shaders/Diffuse",
+                    "Sprites/Default",
+                    "Unlit/Color"
+                };
+
+            for (int i = 0; i < candidates.Length; i++) {
+                var shader = Shader.Find(candidates[i]);
+                if (shader != null) {
+                    var material = new Material(shader);
+                    material.name = materialName;
+                    return material;
+                }
+            }
+
+            Debug.LogWarning("No compatible runtime shader was found. Falling back to internal error shader.");
+            return new Material(Shader.Find("Hidden/InternalErrorShader"));
         }
 
         void ApplyLoadedSettings(Loader.RunSettings settings) {
@@ -158,27 +215,83 @@ namespace Task2 {
         }
 
         void HandleMouse() {
-            if (cam == null) return;
+            if (!TryGetGrabRay(out var ray)) return;
 
             if (Input.GetMouseButtonDown(0)) {
-                var ray = cam.ScreenPointToRay(Input.mousePosition);
-                if (Physics.Raycast(ray, out RaycastHit hit, 1000f)) {
-                    var idx = FindParticleByCollider(hit.collider);
-                    if (idx >= 0 && !particles[idx].isFixed) {
-                        grabbed = idx;
-                        grabDepth = Vector3.Dot(particles[idx].position - ray.origin, ray.direction);
-                        grabOffset = particles[idx].position - ray.GetPoint(grabDepth);
-                    }
+                if (TryPickParticleFromRay(ray, out var idx, out var distanceAlongRay)) {
+                    grabbed = idx;
+                    holdDistance = Mathf.Clamp(distanceAlongRay, holdMinDistance, holdMaxDistance);
                 }
             }
 
             if (Input.GetMouseButtonUp(0)) grabbed = -1;
         }
 
+        bool TryPickParticleFromRay(Ray ray, out int pickedIndex, out float distanceAlongRay) {
+            pickedIndex = -1;
+            distanceAlongRay = 0f;
+
+            var dir = ray.direction;
+            var dirLen = dir.magnitude;
+            if (dirLen < Mathf.Epsilon)
+                return false;
+
+            dir /= dirLen;
+
+            float bestRadialSqr = float.PositiveInfinity;
+            float bestT = 0f;
+
+            for (int i = 0; i < particles.Count; i++) {
+                var p = particles[i];
+                if (p.isFixed) continue;
+
+                var toParticle = p.position - ray.origin;
+                var t = Vector3.Dot(toParticle, dir);
+                if (t < 0f || t > grabRayLength)
+                    continue;
+
+                var closestPoint = ray.origin + dir * t;
+                var radialSqr = (p.position - closestPoint).sqrMagnitude;
+                var pickRadius = Mathf.Max(grabSelectionRadius, p.radius * 1.25f);
+                if (radialSqr > pickRadius * pickRadius)
+                    continue;
+
+                if (radialSqr < bestRadialSqr || (Mathf.Approximately(radialSqr, bestRadialSqr) && t < bestT)) {
+                    bestRadialSqr = radialSqr;
+                    bestT = t;
+                    pickedIndex = i;
+                }
+            }
+
+            if (pickedIndex < 0)
+                return false;
+
+            distanceAlongRay = bestT;
+            return true;
+        }
+
         Vector3 GetGrabPoint() {
-            if (cam == null || grabbed < 0) return Vector3.zero;
-            var ray = cam.ScreenPointToRay(Input.mousePosition);
-            return ray.GetPoint(grabDepth) + grabOffset;
+            if (grabbed < 0) return Vector3.zero;
+            if (!TryGetGrabRay(out var ray)) return Vector3.zero;
+            return ray.GetPoint(holdDistance);
+        }
+
+        bool TryGetGrabRay(out Ray ray) {
+            if (grabRayTransform == null) {
+                if (cam == null)
+                    cam = Camera.main;
+
+                if (cam != null)
+                    grabRayTransform = cam.transform;
+            }
+
+            if (grabRayTransform == null) {
+                ray = default;
+                return false;
+            }
+
+            ray = new Ray(grabRayTransform.position, grabRayTransform.forward);
+            return true;
         }
 
         int FindParticleByCollider(Collider c) {
@@ -225,8 +338,16 @@ namespace Task2 {
             floorVisual.name = "Floor";
             floorVisual.transform.position = new Vector3(0, floorY, 0);
             floorVisual.transform.localScale = Vector3.one * 1.5f;
+
+            var floorCollider = floorVisual.GetComponent<Collider>();
+            if (floorCollider != null)
+                floorCollider.enabled = false;
+
             var r = floorVisual.GetComponent<Renderer>();
-            r.material.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+            var floorMat = new Material(floorRuntimeMaterial);
+            floorMat.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+            r.material = floorMat;
+
             spawned.Add(floorVisual);
         }
 
@@ -291,7 +412,10 @@ namespace Task2 {
             go.transform.localScale = Vector3.one * particleSize;
             go.name = $"Particle_{particles.Count}";
             var renderer = go.GetComponent<Renderer>();
-            renderer.material.color = color;
+
+            var particleMat = new Material(particleRuntimeMaterial);
+            particleMat.color = color;
+            renderer.material = particleMat;
 
             p.go = go;
             p.renderer = renderer;
