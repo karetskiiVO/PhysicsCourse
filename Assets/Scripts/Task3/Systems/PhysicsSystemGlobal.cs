@@ -54,7 +54,7 @@ namespace Task3 {
         }
 
         private Quaternion ScaleQuaternion(Quaternion q, float scale) {
-            return new Quaternion(q.x * scale, q.y * scale, q.z * scale, q.w * scale);
+            return new(q.x * scale, q.y * scale, q.z * scale, q.w * scale);
         }
 
         private float CalculateEnergy(ref RigidBody rb) {

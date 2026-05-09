@@ -32,7 +32,8 @@ namespace Task3 {
         );
 
         public void ApplyForce(Vector3 force, Vector3 localPos) {
-
+            forceAccumulator += force;
+            torqueAccumulator += Vector3.Cross(localPos, force);
         }
 
         public static RigidBody FromMassAndSize(float mass, Vector3 size, bool isStatic = false, float staticFriction = 0.5f, float dynamicFriction = 0.3f) {

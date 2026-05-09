@@ -1,4 +1,5 @@
 using Leopotam.Ecs;
+
 using UnityEngine;
 
 namespace Task3.SceneGenerators {
@@ -21,7 +22,8 @@ namespace Task3.SceneGenerators {
             float mass,
             Vector3 angularVelocity,
             Vector3 linearVelocity = default,
-            bool isStatic = false
+            bool isStatic = false,
+            bool addAngularMomentumDisplay = true
         ) {
             var entity = ecsWorld.NewEntity();
 
@@ -35,7 +37,10 @@ namespace Task3.SceneGenerators {
             rb.angularVelocity = angularVelocity;
             rb.linearVelocity = linearVelocity;
 
-            ref var display = ref entity.Get<AngularMomentumDisplay>();
+            if (addAngularMomentumDisplay) {
+                ref var display = ref entity.Get<AngularMomentumDisplay>();
+            }
+
             ref var trRef = ref entity.Get<TransformRef>();
 
             return entity;

@@ -3,8 +3,8 @@ using Leopotam.Ecs;
 using UnityEngine;
 
 namespace Task3 {
-    public class PhysicsSystemLocalImplicitGyro : IEcsRunSystem {
-        private EcsFilter<RigidBody, Transform, AngularMomentumDisplay> rigidBodies = null;
+    public class PhysicsSystemSequentialImpulses : IEcsRunSystem {
+        private EcsFilter<RigidBody, Transform> rigidBodies = null;
         private const int MAX_ITERATIONS = 5;
 
         public void Run() {
@@ -13,9 +13,11 @@ namespace Task3 {
             foreach (var idx in rigidBodies) {
                 ref var rb = ref rigidBodies.Get1(idx);
                 ref var tr = ref rigidBodies.Get2(idx);
-                ref var display = ref rigidBodies.Get3(idx);
 
                 if (rb.isStatic) continue;
+
+                rb.prevPosition = tr.position;
+                rb.prevRotation = tr.rotation;
 
                 var linearAcceleration = rb.forceAccumulator * rb.InverseMass;
                 rb.linearVelocity += linearAcceleration * dt;
@@ -60,11 +62,6 @@ namespace Task3 {
                     tr.rotation.w + qDot.w * dt
                 ).normalized;
 
-                var angularMomentumLocalUpdated = Vector3.Scale(angularVelocityLocal, inertiaTensor);
-                display.currentAngularMomentum = tr.rotation * angularMomentumLocalUpdated;
-
-                display.currentEnergy = CalculateEnergy(ref rb);
-
                 rb.forceAccumulator = Vector3.zero;
                 rb.torqueAccumulator = Vector3.zero;
             }
@@ -72,24 +69,6 @@ namespace Task3 {
 
         private Quaternion ScaleQuaternion(Quaternion q, float scale) {
             return new(q.x * scale, q.y * scale, q.z * scale, q.w * scale);
-        }
-
-        private float CalculateEnergy(ref RigidBody rb) {
-            var linearEnergy = 0.5f * rb.mass * rb.linearVelocity.sqrMagnitude;
-
-            var inertiaTensor = new Vector3(
-                1f / rb.InverseInertiaTensor.x,
-                1f / rb.InverseInertiaTensor.y,
-                1f / rb.InverseInertiaTensor.z
-            );
-
-            var angularEnergy = 0.5f * (
-                inertiaTensor.x * rb.angularVelocity.x * rb.angularVelocity.x +
-                inertiaTensor.y * rb.angularVelocity.y * rb.angularVelocity.y +
-                inertiaTensor.z * rb.angularVelocity.z * rb.angularVelocity.z
-            );
-
-            return linearEnergy + angularEnergy;
         }
     }
 }

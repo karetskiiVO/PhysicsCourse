@@ -17,14 +17,14 @@ namespace Task3 {
                     ref var rb = ref rigidBodies.Get1(idx);
                     ref var display = ref rigidBodies.Get2(idx);
 
-                    Vector3 momentumDrift = display.currentAngularMomentum - display.initialAngularMomentum;
-                    float momentumDriftMagnitude = momentumDrift.magnitude;
-                    float momentumDriftPercent = display.initialAngularMomentum.magnitude > 0.001f
+                    var momentumDrift = display.currentAngularMomentum - display.initialAngularMomentum;
+                    var momentumDriftMagnitude = momentumDrift.magnitude;
+                    var momentumDriftPercent = display.initialAngularMomentum.magnitude > 0.001f
                         ? (momentumDriftMagnitude / display.initialAngularMomentum.magnitude) * 100f
                         : 0f;
 
-                    float energyDrift = display.currentEnergy - display.initialEnergy;
-                    float energyDriftPercent = display.initialEnergy > 0.001f
+                    var energyDrift = display.currentEnergy - display.initialEnergy;
+                    var energyDriftPercent = display.initialEnergy > 0.001f
                         ? (energyDrift / display.initialEnergy) * 100f
                         : 0f;
                 }
