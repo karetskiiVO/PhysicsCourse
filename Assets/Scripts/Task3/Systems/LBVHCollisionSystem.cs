@@ -10,19 +10,27 @@ namespace Task3 {
         private EcsFilter<RigidBody, Transform> filter = null;
         private EcsWorld world = null;
 
-        private struct LBVHNode {
+        private struct Leaf {
             public int entityIndex;
             public uint mortonCode;
-            public float minX, maxX;
-            public float minY, maxY;
-            public float minZ, maxZ;
+            public Vector3 min, max;
         }
 
-        private List<LBVHNode> nodes = new();
+        private struct TreeNode {
+            public Vector3 min, max;
+            public int leftChild, rightChild;
+            public int entityIndex;
+            public bool IsLeaf => leftChild == -1 && rightChild == -1;
+        }
+
+        private List<Leaf> leaves = new();
+        private TreeNode[] nodes = new TreeNode[0];
+        private int nodeCount = 0;
 
         public void Run() {
-            nodes.Clear();
+            leaves.Clear();
             var count = filter.GetEntitiesCount();
+            if (count == 0) return;
 
             var sceneMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             var sceneMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
@@ -34,9 +42,9 @@ namespace Task3 {
             }
 
             var sceneSize = sceneMax - sceneMin;
-            if (sceneSize.x == 0) sceneSize.x = 0.01f;
-            if (sceneSize.y == 0) sceneSize.y = 0.01f;
-            if (sceneSize.z == 0) sceneSize.z = 0.01f;
+            if (sceneSize.x <= 0f) sceneSize.x = 0.01f;
+            if (sceneSize.y <= 0f) sceneSize.y = 0.01f;
+            if (sceneSize.z <= 0f) sceneSize.z = 0.01f;
 
             for (int i = 0; i < count; i++) {
                 ref var rb = ref filter.Get1(i);
@@ -45,62 +53,143 @@ namespace Task3 {
                 var radius = rb.size.magnitude * 0.5f;
 
                 var pos = tr.position;
+                var min = new Vector3(pos.x - radius, pos.y - radius, pos.z - radius);
+                var max = new Vector3(pos.x + radius, pos.y + radius, pos.z + radius);
+
                 var morton = ExpandBits(
                     (uint)((pos.x - sceneMin.x) / sceneSize.x * 1023.0f)) |
                     (ExpandBits((uint)((pos.y - sceneMin.y) / sceneSize.y * 1023.0f)) << 1) |
                     (ExpandBits((uint)((pos.z - sceneMin.z) / sceneSize.z * 1023.0f)) << 2
                 );
 
-                nodes.Add(new LBVHNode {
+                leaves.Add(new Leaf {
                     entityIndex = i,
                     mortonCode = morton,
-                    minX = pos.x - radius, maxX = pos.x + radius,
-                    minY = pos.y - radius, maxY = pos.y + radius,
-                    minZ = pos.z - radius, maxZ = pos.z + radius
+                    min = min,
+                    max = max
                 });
             }
 
-            nodes.Sort((a, b) => a.mortonCode.CompareTo(b.mortonCode));
+            leaves.Sort((a, b) => a.mortonCode.CompareTo(b.mortonCode));
 
-            var searchWindow = Mathf.Min(30, nodes.Count);
+            if (nodes.Length < count * 2) {
+                nodes = new TreeNode[count * 2];
+            }
+            nodeCount = 0;
+
+            var root = BuildTree(0, leaves.Count - 1);
+
             var checkedPairs = new HashSet<ulong>();
+            var stack = new int[64];
 
-            for (int i = 0; i < nodes.Count; i++) {
-                var nodeA = nodes[i];
+            for (int i = 0; i < leaves.Count; i++) {
+                var leaf = leaves[i];
+                var idA = leaf.entityIndex;
+                var minA = leaf.min;
+                var maxA = leaf.max;
 
-                for (int j = i + 1; j < Mathf.Min(i + searchWindow, nodes.Count); j++) {
-                    var nodeB = nodes[j];
+                var stackPtr = 0;
+                stack[stackPtr++] = root;
 
-                    if (nodeA.minX <= nodeB.maxX && nodeA.maxX >= nodeB.minX &&
-                        nodeA.minY <= nodeB.maxY && nodeA.maxY >= nodeB.minY &&
-                        nodeA.minZ <= nodeB.maxZ && nodeA.maxZ >= nodeB.minZ) {
+                while (stackPtr > 0) {
+                    var current = stack[--stackPtr];
+                    ref var node = ref nodes[current];
 
-                        var idA = nodeA.entityIndex;
-                        var idB = nodeB.entityIndex;
+                    if (minA.x > node.max.x || maxA.x < node.min.x ||
+                        minA.y > node.max.y || maxA.y < node.min.y ||
+                        minA.z > node.max.z || maxA.z < node.min.z) {
+                        continue;
+                    }
 
-                        var minId = Math.Min(idA, idB);
-                        var maxId = Math.Max(idA, idB);
-                        var pairId = (ulong)minId << 32 | (uint)maxId;
+                    if (node.IsLeaf) {
+                        var idB = node.entityIndex;
+                        if (idB > idA) {
+                            var pairId = (ulong)idA << 32 | (uint)idB;
+                            if (checkedPairs.Add(pairId)) {
+                                ref var rbA = ref filter.Get1(idA);
+                                ref var rbB = ref filter.Get1(idB);
 
-                        if (!checkedPairs.Add(pairId)) continue;
+                                if (!rbA.isStatic || !rbB.isStatic) {
+                                    ref var trA = ref filter.Get2(idA);
+                                    ref var trB = ref filter.Get2(idB);
 
-                        ref var rbA = ref filter.Get1(minId);
-                        ref var rbB = ref filter.Get1(maxId);
-
-                        if (rbA.isStatic && rbB.isStatic) continue;
-
-                        ref var trA = ref filter.Get2(minId);
-                        ref var trB = ref filter.Get2(maxId);
-
-                        if (BoxCollision3DUtils.TestBoxBox(trA, rbA, trB, rbB, out var manifold)) {
-                            manifold.bodyA = filter.GetEntity(minId);
-                            manifold.bodyB = filter.GetEntity(maxId);
-                            var ent = world.NewEntity();
-                            ent.Get<ContactInfo>() = manifold;
+                                    if (BoxCollision3DUtils.TestBoxBox(trA, rbA, trB, rbB, out var manifold)) {
+                                        manifold.bodyA = filter.GetEntity(idA);
+                                        manifold.bodyB = filter.GetEntity(idB);
+                                        var ent = world.NewEntity();
+                                        ent.Get<ContactInfo>() = manifold;
+                                    }
+                                }
+                            }
                         }
+                    } else {
+                        stack[stackPtr++] = node.leftChild;
+                        stack[stackPtr++] = node.rightChild;
                     }
                 }
             }
+        }
+
+        private int AllocateNode(Vector3 min, Vector3 max, int left, int right, int entityIndex) {
+            var index = nodeCount++;
+            nodes[index] = new TreeNode {
+                min = min, max = max,
+                leftChild = left, rightChild = right,
+                entityIndex = entityIndex
+            };
+            return index;
+        }
+
+        private int BuildTree(int first, int last) {
+            if (first == last) {
+                var leaf = leaves[first];
+                return AllocateNode(leaf.min, leaf.max, -1, -1, leaf.entityIndex);
+            }
+
+            var split = FindSplit(first, last);
+
+            var left = BuildTree(first, split);
+            var right = BuildTree(split + 1, last);
+
+            var min = Vector3.Min(nodes[left].min, nodes[right].min);
+            var max = Vector3.Max(nodes[left].max, nodes[right].max);
+
+            return AllocateNode(min, max, left, right, -1);
+        }
+
+        private int FindSplit(int first, int last) {
+            var firstCode = leaves[first].mortonCode;
+            var lastCode = leaves[last].mortonCode;
+
+            if (firstCode == lastCode) return (first + last) >> 1;
+
+            var commonPrefix = CountLeadingZeros(firstCode ^ lastCode);
+            var split = first;
+            var step = last - first;
+
+            do {
+                step = (step + 1) >> 1;
+                var newSplit = split + step;
+
+                if (newSplit < last) {
+                    var splitCode = leaves[newSplit].mortonCode;
+                    var splitPrefix = CountLeadingZeros(firstCode ^ splitCode);
+                    if (splitPrefix > commonPrefix) split = newSplit;
+                }
+            } while (step > 1);
+
+            return split;
+        }
+
+        private int CountLeadingZeros(uint x) {
+            int n = 0;
+            if (x == 0) return 32;
+            if ((x & 0xFFFF0000) == 0) { n += 16; x <<= 16; }
+            if ((x & 0xFF000000) == 0) { n += 8; x <<= 8; }
+            if ((x & 0xF0000000) == 0) { n += 4; x <<= 4; }
+            if ((x & 0xC0000000) == 0) { n += 2; x <<= 2; }
+            if ((x & 0x80000000) == 0) { n += 1; }
+            return n;
         }
 
         private uint ExpandBits(uint v) {

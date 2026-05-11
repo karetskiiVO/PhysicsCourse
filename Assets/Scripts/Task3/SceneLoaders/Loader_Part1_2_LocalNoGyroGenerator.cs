@@ -5,5 +5,6 @@ using UnityEngine;
 namespace Task3.SceneGenerators {
     public class Loader_Part1_2_LocalNoGyroGenerator : Loader {
         protected override Type sceneGenerator => typeof(Part1_2_LocalNoGyroGenerator);
+        protected override string Name => "2) Local No Gyro";
     }
 }

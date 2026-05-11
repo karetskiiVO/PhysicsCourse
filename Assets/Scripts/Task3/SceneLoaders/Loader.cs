@@ -6,6 +6,7 @@ namespace Task3 {
     [RequireComponent(typeof(Button))]
     public abstract class Loader : MonoBehaviour {
         abstract protected System.Type sceneGenerator { get; }
+        abstract protected string Name { get; }
 
         const string TargetSceneName = "MainTask3";
 
@@ -14,7 +15,7 @@ namespace Task3 {
             var text = GetComponentInChildren<Text>();
 
             button.onClick.AddListener(Load);
-            text.text = sceneGenerator.Name;
+            text.text = Name;
         }
 
         void Load() {
