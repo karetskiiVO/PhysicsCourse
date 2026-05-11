@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Task3 {
     public class PhysicsSystemLocalImplicitGyro : IEcsRunSystem {
-        private EcsFilter<RigidBody, Transform, AngularMomentumDisplay> rigidBodies = null;
+        private EcsFilter<RigidBody, Transform> rigidBodies = null;
         private const int MAX_ITERATIONS = 5;
 
         public void Run() {
@@ -13,7 +13,6 @@ namespace Task3 {
             foreach (var idx in rigidBodies) {
                 ref var rb = ref rigidBodies.Get1(idx);
                 ref var tr = ref rigidBodies.Get2(idx);
-                ref var display = ref rigidBodies.Get3(idx);
 
                 if (rb.isStatic) continue;
 
@@ -64,9 +63,13 @@ namespace Task3 {
                 ).normalized;
 
                 var angularMomentumLocalUpdated = Vector3.Scale(angularVelocityLocal, inertiaTensor);
-                display.currentAngularMomentum = tr.rotation * angularMomentumLocalUpdated;
+                var currentEnergy = CalculateEnergy(ref rb);
 
-                display.currentEnergy = CalculateEnergy(ref rb);
+                if (rigidBodies.GetEntity(idx).Has<AngularMomentumDisplay>()) {
+                    ref var display = ref rigidBodies.GetEntity(idx).Get<AngularMomentumDisplay>();
+                    display.currentAngularMomentum = tr.rotation * angularMomentumLocalUpdated;
+                    display.currentEnergy = currentEnergy;
+                }
 
                 rb.forceAccumulator = Vector3.zero;
                 rb.torqueAccumulator = Vector3.zero;

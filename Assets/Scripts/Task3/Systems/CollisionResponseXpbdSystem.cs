@@ -9,7 +9,7 @@ namespace Task3 {
 
         public void Run() {
             var count = filter.GetEntitiesCount();
-            int subSteps = 10;
+            var subSteps = 10;
 
             var localA = new Vector3[count];
             var localB = new Vector3[count];
@@ -42,8 +42,7 @@ namespace Task3 {
                     var pA = trA.position + rA;
                     var pB = trB.position + rB;
                     var currentDist = Vector3.Dot(pB - pA, manifold.normal);
-                    var separation = currentDist - manifold.initialDist;
-                    var c = manifold.penetration - separation;
+                    var c = manifold.penetration - currentDist;
 
                     if (c > 0) {
                         var lambda = c / totalInverseMass;
@@ -55,8 +54,8 @@ namespace Task3 {
                         var combinedStatic = Mathf.Sqrt(rbA.staticFriction * rbB.staticFriction);
                         var combinedDynamic = Mathf.Sqrt(rbA.dynamicFriction * rbB.dynamicFriction);
 
-                        var dpA = rbA.isStatic ? Vector3.zero : (trA.position - rbA.prevPosition);
-                        var dpB = rbB.isStatic ? Vector3.zero : (trB.position - rbB.prevPosition);
+                        var dpA = rbA.isStatic ? Vector3.zero : ((trA.position + rA) - (rbA.prevPosition + rbA.prevRotation * localA[i]));
+                        var dpB = rbB.isStatic ? Vector3.zero : ((trB.position + rB) - (rbB.prevPosition + rbB.prevRotation * localB[i]));
 
                         var deltaP = dpB - dpA;
                         var deltaPt = deltaP - Vector3.Dot(deltaP, manifold.normal) * manifold.normal;
