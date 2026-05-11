@@ -157,7 +157,7 @@ Light:
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
   m_Shadows:
-    m_Type: 0
+    m_Type: 1
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
@@ -190,7 +190,7 @@ Light:
     serializedVersion: 2
     m_Bits: 4294967295
   m_RenderingLayerMask: 1
-  m_Lightmapping: 4
+  m_Lightmapping: 1
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
@@ -227,6 +227,7 @@ GameObject:
   - component: {fileID: 1168421321}
   - component: {fileID: 1168421320}
   - component: {fileID: 1168421319}
+  - component: {fileID: 1168421322}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -308,6 +309,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1168421322
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1168421318}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 933d65b6030598c46abb3938bfb3f27f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mouseSensitivity: 2.2
+  invertY: 0
+  lockCursorWhileLooking: 1
+  minPitch: -89
+  maxPitch: 89
+  baseMoveSpeed: 6
+  fastMultiplier: 3
+  slowMultiplier: 0.35
+  acceleration: 18
+  deceleration: 22
+  moveOnlyWhileLooking: 1
+  scrollStep: 1.5
+  minBaseSpeed: 0.5
+  maxBaseSpeed: 120
 --- !u!1 &1223916094
 GameObject:
   m_ObjectHideFlags: 0
@@ -349,7 +376,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1223916094}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87a8f5130bf71b84cb1adb3502d708be, type: 3}
+  m_Script: {fileID: 11500000, guid: 00f841b3a6251e14e96e2ee2488954d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1660057539 &9223372036854775807

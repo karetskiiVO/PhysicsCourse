@@ -11,10 +11,13 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/MainTask1.unity
     guid: e198651271e09c4498c49ad641b43528
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/MenuTask2.unity
     guid: aed04a23af1ec7648acc213521df99ca
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/MainTask2.unity
     guid: cb995ea775d96614dafca4d11278391c
+  - enabled: 1
+    path: Assets/Scenes/MainTask3.unity
+    guid: ce23a63ed99c36f4fbd61cd3c31a2962
   m_configObjects: {}

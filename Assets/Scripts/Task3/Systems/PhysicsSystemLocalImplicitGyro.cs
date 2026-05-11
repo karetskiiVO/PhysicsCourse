@@ -17,6 +17,9 @@ namespace Task3 {
 
                 if (rb.isStatic) continue;
 
+                rb.prevPosition = tr.position;
+                rb.prevRotation = tr.rotation;
+
                 var linearAcceleration = rb.forceAccumulator * rb.InverseMass;
                 rb.linearVelocity += linearAcceleration * dt;
                 tr.position += rb.linearVelocity * dt;
