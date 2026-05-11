@@ -16,6 +16,7 @@ namespace Task3 {
             var localB = new Vector3[count];
             var accumulatedImpulses = new float[count];
             var accumulatedFriction = new Vector3[count];
+            var accumulatedAngularFriction = new float[count];
 
             for (int i = 0; i < count; i++) {
                 ref var manifold = ref filter.Get1(i);
@@ -94,6 +95,31 @@ namespace Task3 {
 
                         RigidBodyConstraintUtils.ApplyImpulse(ref rbA, trA.rotation, rA, -deltaFriction);
                         RigidBodyConstraintUtils.ApplyImpulse(ref rbB, trB.rotation, rB, deltaFriction);
+                    }
+
+                    var angularRelVel = rbB.angularVelocity - rbA.angularVelocity;
+                    var wRelNormal = Vector3.Dot(angularRelVel, normal);
+                    if (Mathf.Abs(wRelNormal) > Mathf.Epsilon) {
+                        var invIA = Vector3.Dot(normal, RigidBodyConstraintUtils.GetWorldInverseInertiaTensor(rbA, trA.rotation, normal));
+                        var invIB = Vector3.Dot(normal, RigidBodyConstraintUtils.GetWorldInverseInertiaTensor(rbB, trB.rotation, normal));
+                        var wSumAngular = invIA + invIB;
+
+                        if (wSumAngular > Mathf.Epsilon) {
+                            var angularJ = -wRelNormal / wSumAngular;
+
+                            var mu = Mathf.Sqrt(rbA.dynamicFriction * rbB.dynamicFriction);
+                            var maxAngularFriction = mu * accumulatedImpulses[i] * 0.25f; // Add a lever arm approximation
+
+                            float oldAngularFriction = accumulatedAngularFriction[i];
+                            float newAngularFriction = Mathf.Clamp(oldAngularFriction + angularJ, -maxAngularFriction, maxAngularFriction);
+                            accumulatedAngularFriction[i] = newAngularFriction;
+
+                            var deltaAngularFriction = newAngularFriction - oldAngularFriction;
+                            var angularImpulse = normal * deltaAngularFriction;
+
+                            if (!rbA.isStatic) rbA.angularVelocity -= RigidBodyConstraintUtils.GetWorldInverseInertiaTensor(rbA, trA.rotation, angularImpulse);
+                            if (!rbB.isStatic) rbB.angularVelocity += RigidBodyConstraintUtils.GetWorldInverseInertiaTensor(rbB, trB.rotation, angularImpulse);
+                        }
                     }
                 }
             }
